@@ -20,30 +20,18 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('tp_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Lấy thông tin user hiện tại khi có token
+  // Lấy thông tin user hiện tại thông qua HttpOnly Cookie phiên làm việc
   const refreshProfile = useCallback(async () => {
-    const storedToken = localStorage.getItem('tp_token');
-    if (!storedToken) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const res = await apiRequest<User>('/auth/me');
       if (res.success && res.data) {
         setUser(res.data);
       } else {
-        localStorage.removeItem('tp_token');
-        setToken(null);
         setUser(null);
       }
     } catch {
-      localStorage.removeItem('tp_token');
-      setToken(null);
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -63,10 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.success && res.data) {
-        const { token: newToken, user: userData } = res.data;
-        localStorage.setItem('tp_token', newToken);
-        setToken(newToken);
-        setUser(userData);
+        setUser(res.data.user);
       } else {
         throw new ApiError(res.message || 'Đăng nhập không thành công.');
       }
@@ -77,14 +62,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      if (token) {
-        await apiRequest('/auth/logout', { method: 'POST' });
-      }
+      await apiRequest('/auth/logout', { method: 'POST' });
     } catch (err) {
       console.warn('Lỗi khi đăng xuất máy chủ:', err);
     } finally {
-      localStorage.removeItem('tp_token');
-      setToken(null);
       setUser(null);
     }
   };
@@ -125,8 +106,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider
       value={{
         user,
-        token,
-        isAuthenticated: !!user && !!token,
+        token: user ? 'cookie-authenticated' : null,
+        isAuthenticated: !!user,
         isLoading,
         login,
         logout,

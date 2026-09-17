@@ -12,16 +12,20 @@ class AuthMiddleware {
     private static ?string $currentSessionId = null;
 
     public static function authenticate(): array {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        // Ưu tiên trích xuất Bearer token từ HttpOnly Cookie an toàn
+        $token = $_COOKIE['tp_token'] ?? '';
 
-        if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-            ResponseHelper::unauthorized('Vui lòng cung cấp mã xác thực hợp lệ (Bearer token).');
+        // Dự phòng: trích xuất từ Authorization header nếu client gửi trực tiếp
+        if (empty($token)) {
+            $headers = getallheaders();
+            $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+                $token = trim($matches[1]);
+            }
         }
 
-        $token = trim($matches[1]);
         if (empty($token)) {
-            ResponseHelper::unauthorized('Mã xác thực không được để trống.');
+            ResponseHelper::unauthorized('Vui lòng đăng nhập để truy cập hệ thống.');
         }
 
         $tokenHash = Security::hashToken($token);

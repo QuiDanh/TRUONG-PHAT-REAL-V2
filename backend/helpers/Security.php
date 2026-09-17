@@ -34,8 +34,10 @@ class Security {
     }
 
     public static function hashToken(string $token): string {
-        $salt = defined('TOKEN_SECRET_SALT') ? TOKEN_SECRET_SALT : 'DEFAULT_SALT';
-        return hash('sha256', $token . $salt);
+        if (!defined('TOKEN_SECRET_SALT') || empty(trim(TOKEN_SECRET_SALT)) || trim(TOKEN_SECRET_SALT) === 'CHANGE_THIS_TO_A_64_CHAR_RANDOM_STRING_FOR_SECURE_TOKEN_HASHING') {
+            throw new RuntimeException('LỖI BẢO MẬT: TOKEN_SECRET_SALT chưa được cấu hình. Backend từ chối hoạt động.');
+        }
+        return hash('sha256', $token . TOKEN_SECRET_SALT);
     }
 
     public static function sanitizeString(?string $str): string {

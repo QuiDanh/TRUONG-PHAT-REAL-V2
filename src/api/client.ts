@@ -1,11 +1,13 @@
 /**
  * TRƯỜNG PHÁT REAL - API Client
- * Chuẩn hóa gọi REST API v1, tự động gán Bearer token và xử lý lỗi thống nhất.
+ * Chuẩn hóa gọi REST API v1.
+ * Tuân thủ bảo mật cấp ngân hàng: xác thực thông qua HttpOnly, Secure, SameSite Cookie.
+ * Tuyệt đối không lưu trữ hoặc đọc/ghi Token trong localStorage để chống XSS.
  */
 
 import { ApiResponse } from '../types';
 
-const BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || '/api/v1';
+const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api/v1';
 
 export class ApiError extends Error {
   statusCode: number;
@@ -25,16 +27,11 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('tp_token');
   const headers = new Headers(options.headers || {});
 
   headers.set('Accept', 'application/json');
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
-  }
-
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`);
   }
 
   const requestId = 'REQ-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
@@ -46,7 +43,8 @@ export async function apiRequest<T = any>(
   try {
     const response = await fetch(url, {
       ...options,
-      headers
+      headers,
+      credentials: options.credentials || 'include'
     });
 
     // Parse JSON
@@ -77,7 +75,6 @@ export async function apiRequest<T = any>(
       throw err;
     }
 
-    // Nếu lỗi mạng hoặc server dev chưa có PHP, ném ApiError rõ ràng
     throw new ApiError(
       err.message || 'Mất kết nối với máy chủ API. Vui lòng thử lại.',
       0,
@@ -86,3 +83,4 @@ export async function apiRequest<T = any>(
     );
   }
 }
+

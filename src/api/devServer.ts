@@ -69,7 +69,7 @@ const devState = {
     {
       id: 1,
       code: 'TP-AD001',
-      email: 'admin@truongphatreal.vn',
+      email: 'admin@truongphatsoft.online',
       passwordHash: 'Admin@2026', // Khởi tạo an toàn cho dev
       fullName: 'Nguyễn Văn Phát (Giám Đốc)',
       phone: '0901234567',
@@ -91,7 +91,7 @@ const devState = {
     {
       id: 2,
       code: 'TP-TL001',
-      email: 'leader@truongphatreal.vn',
+      email: 'leader@truongphatsoft.online',
       passwordHash: 'Leader@2026',
       fullName: 'Trần Thị Kim Oanh (Trưởng Nhóm)',
       phone: '0912345678',
@@ -113,7 +113,7 @@ const devState = {
     {
       id: 3,
       code: 'TP-AG001',
-      email: 'agent@truongphatreal.vn',
+      email: 'agent@truongphatsoft.online',
       passwordHash: 'Agent@2026',
       fullName: 'Lê Minh Tuấn (Môi Giới)',
       phone: '0987654321',
@@ -143,8 +143,9 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
   const path = url.replace(/^\/api\/v1/, '').split('?')[0] || '/';
   const requestId = 'REQ-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now();
 
-  const makeRes = (success: boolean, message: string, data: any = null, errors: any = null, status: number = 200) => ({
+  const makeRes = (success: boolean, message: string, data: any = null, errors: any = null, status: number = 200, resHeaders: any = null) => ({
     status,
+    headers: resHeaders || {},
     body: {
       success,
       message,
@@ -155,8 +156,16 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
   });
 
   const getAuthUser = (): DevUser | null => {
-    const authHeader = headers['authorization'] || headers['Authorization'] || '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    let token = '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+    const match = cookieHeader.match(/tp_token=([^;]+)/);
+    if (match) {
+      token = decodeURIComponent(match[1]);
+    }
+    if (!token) {
+      const authHeader = headers['authorization'] || headers['Authorization'] || '';
+      token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    }
     if (!token) return null;
     const session = devState.sessions.find(s => s.token === token && !s.isRevoked && s.expiresAt > Date.now());
     if (!session) return null;
@@ -268,6 +277,8 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
       user_code: user.code
     });
 
+    const cookieStr = `tp_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(lifetime / 1000)}`;
+
     return makeRes(true, 'Đăng nhập thành công.', {
       token,
       expires_at: new Date(Date.now() + lifetime).toISOString(),
@@ -284,7 +295,7 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
         requirePasswordChange: user.requirePasswordChange,
         permissions: user.role.code === 'ADMIN' ? ['*'] : ['dashboard.view', 'properties.view', 'customers.view', 'appointments.view']
       }
-    });
+    }, null, 200, { 'Set-Cookie': cookieStr });
   }
 
   // 2. GET /auth/me
@@ -308,11 +319,18 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
 
   // 3. POST /auth/logout
   if (path === '/auth/logout' && method === 'POST') {
-    const authHeader = headers['authorization'] || headers['Authorization'] || '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    let token = '';
+    const cookieHeader = headers['cookie'] || headers['Cookie'] || '';
+    const match = cookieHeader.match(/tp_token=([^;]+)/);
+    if (match) token = decodeURIComponent(match[1]);
+    if (!token) {
+      const authHeader = headers['authorization'] || headers['Authorization'] || '';
+      token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    }
     const session = devState.sessions.find(s => s.token === token);
     if (session) session.isRevoked = true;
-    return makeRes(true, 'Đăng xuất thành công.');
+    const clearCookie = 'tp_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    return makeRes(true, 'Đăng xuất thành công.', null, null, 200, { 'Set-Cookie': clearCookie });
   }
 
   // 4. POST /auth/change-password
@@ -335,7 +353,28 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
 
   // 5. POST /auth/forgot-password
   if (path === '/auth/forgot-password' && method === 'POST') {
-    return makeRes(true, 'Nếu email tồn tại trên hệ thống, hướng dẫn đặt lại mật khẩu đã được xử lý.');
+    return makeRes(true, 'Nếu email tồn tại trên hệ thống, mã bảo mật khôi phục mật khẩu (thời hạn 30 phút) đã được khởi tạo.');
+  }
+
+  // 5b. POST /auth/reset-password
+  if (path === '/auth/reset-password' && method === 'POST') {
+    const { token, newPassword } = body;
+    if (!token || !newPassword) {
+      return makeRes(false, 'Vui lòng cung cấp đầy đủ thông tin đặt lại mật khẩu.', null, null, 400);
+    }
+    if (newPassword.length < 8) {
+      return makeRes(false, 'Mật khẩu mới phải có tối thiểu 8 ký tự.', null, null, 400);
+    }
+    // Update admin password for dev testing
+    if (devState.users[0]) {
+      devState.users[0].passwordHash = newPassword;
+      devState.users[0].requirePasswordChange = false;
+      devState.users[0].failedLoginAttempts = 0;
+      devState.users[0].lockedUntil = null;
+    }
+    // Revoke old sessions
+    devState.sessions.forEach(s => { s.isRevoked = true; });
+    return makeRes(true, 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay.');
   }
 
   // 6. GET /dashboard/stats

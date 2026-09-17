@@ -127,7 +127,26 @@ CREATE TABLE `user_permissions` (
 -- --------------------------------------------------------------------
 DROP TABLE IF EXISTS `user_sessions`;
 DROP TABLE IF EXISTS `password_reset_tokens`;
+DROP TABLE IF EXISTS `password_resets`;
 DROP TABLE IF EXISTS `login_attempts`;
+
+CREATE TABLE `password_resets` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `email` VARCHAR(191) NOT NULL,
+  `token` VARCHAR(128) NOT NULL,
+  `token_hash` VARCHAR(64) NOT NULL,
+  `user_id` INT UNSIGNED NOT NULL,
+  `expires_at` DATETIME NOT NULL,
+  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `used_at` DATETIME NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_pres_email` (`email`),
+  INDEX `idx_pres_token` (`token`),
+  INDEX `idx_pres_th` (`token_hash`),
+  INDEX `idx_pres_user` (`user_id`),
+  INDEX `idx_pres_exp` (`expires_at`),
+  CONSTRAINT `fk_pres_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `user_sessions` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

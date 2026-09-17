@@ -4,7 +4,33 @@
  * Entry point cho toàn bộ API phiên bản 1.
  */
 
-require_once __DIR__ . '/../../config/config.php';
+// Kiểm tra tồn tại file cấu hình backend/config/config.php
+$configFile = __DIR__ . '/../../config/config.php';
+if (!file_exists($configFile)) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'LỖI CẤU HÌNH HỆ THỐNG: File backend/config/config.php chưa được tạo. Vui lòng sao chép config.example.php thành config.php và điền thông tin kết nối MariaDB.',
+        'statusCode' => 500
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+require_once $configFile;
+
+// Kiểm tra bắt buộc TOKEN_SECRET_SALT: Nếu thiếu hoặc rỗng hoặc là placeholder thì từ chối khởi động
+if (!defined('TOKEN_SECRET_SALT') || empty(trim(TOKEN_SECRET_SALT)) || trim(TOKEN_SECRET_SALT) === 'CHANGE_THIS_TO_A_64_CHAR_RANDOM_STRING_FOR_SECURE_TOKEN_HASHING') {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'success' => false,
+        'message' => 'LỖI BẢO MẬT NGHIÊM TRỌNG: TOKEN_SECRET_SALT chưa được thiết lập an toàn trong backend/config/config.php. Backend từ chối khởi động!',
+        'statusCode' => 500
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 require_once __DIR__ . '/../../helpers/ResponseHelper.php';
 require_once __DIR__ . '/../../helpers/Security.php';
 require_once __DIR__ . '/../../middleware/CorsMiddleware.php';
@@ -58,6 +84,12 @@ try {
         case '/auth/forgot-password':
             if ($requestMethod === 'POST') {
                 AuthController::forgotPassword();
+            }
+            break;
+
+        case '/auth/reset-password':
+            if ($requestMethod === 'POST') {
+                AuthController::resetPassword();
             }
             break;
 

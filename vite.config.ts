@@ -27,6 +27,11 @@ function devApiPlugin(): Plugin {
             const response = handleDevApi(req.url!, req.method || 'GET', req.headers, parsedBody);
             res.statusCode = response.status;
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            if ((response as any).headers) {
+              for (const [k, v] of Object.entries((response as any).headers)) {
+                res.setHeader(k, v as string);
+              }
+            }
             res.end(JSON.stringify(response.body));
           });
           return;

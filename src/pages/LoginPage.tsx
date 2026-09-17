@@ -42,13 +42,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Quick fill helper for testers and reviewers
-  const handleQuickFill = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setErrorMessage(null);
-  };
-
   return (
     <div className="min-h-screen bg-[#070d1e] text-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Background Decorative subtle radial blur */}
@@ -98,7 +91,7 @@ export const LoginPage: React.FC = () => {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@truongphatreal.vn"
+                  placeholder="name@truongphatreal.vn"
                   className="block w-full pl-10 pr-3 py-2.5 text-sm bg-slate-900/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
                 />
               </div>
@@ -174,39 +167,6 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Accounts for reviewer */}
-          <div className="mt-6 pt-6 border-t border-slate-800">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 text-center">
-              Tài khoản mẫu kiểm thử nhanh:
-            </p>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('admin@truongphatreal.vn', 'Admin@2026')}
-                className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 text-center transition-colors text-amber-300 font-semibold"
-                title="Quản trị viên tối cao"
-              >
-                ADMIN
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('leader@truongphatreal.vn', 'Leader@2026')}
-                className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 text-center transition-colors text-slate-300 font-medium"
-                title="Trưởng nhóm kinh doanh"
-              >
-                TRƯỞNG NHÓM
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickFill('agent@truongphatreal.vn', 'Agent@2026')}
-                className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 text-center transition-colors text-slate-300 font-medium"
-                title="Môi giới (Yêu cầu đổi mật khẩu lần đầu)"
-              >
-                MÔI GIỚI
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Security & Hosting specs footer */}
