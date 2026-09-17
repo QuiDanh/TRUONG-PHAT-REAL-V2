@@ -1,0 +1,24 @@
+# ====================================================================
+# TRƯỜNG PHÁT REAL - REST API .htaccess Configuration
+# Location: public_html/api/.htaccess
+# ====================================================================
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /api/
+
+    # Chuyển tiếp HTTP Authorization header sang PHP CGI/FastCGI
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Route các request v1 về v1/index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^v1/(.*)$ v1/index.php [QSA,L]
+
+    # Mặc định /api -> v1/index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ v1/index.php [QSA,L]
+</IfModule>

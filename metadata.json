@@ -1,0 +1,6 @@
+{
+  "name": "TRƯỜNG PHÁT REAL",
+  "description": "Hệ thống quản lý bất động sản nội bộ cho công ty môi giới tại Việt Nam",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

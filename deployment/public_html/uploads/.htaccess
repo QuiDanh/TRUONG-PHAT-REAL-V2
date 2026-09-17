@@ -1,0 +1,30 @@
+# ====================================================================
+# TRƯỜNG PHÁT REAL - Security Protection for Uploads Directory
+# Location: public_html/uploads/.htaccess
+# Ngăn chặn thực thi mã độc và PHP scripts trong thư mục upload
+# ====================================================================
+
+Options -Indexes -ExecCGI
+
+# Vô hiệu hóa PHP engine trong thư mục này
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Chặn hoàn toàn các file thực thi nguy hiểm
+<FilesMatch "(?i)\.(php|phtml|php3|php4|php5|php7|php8|pht|phar|sh|pl|cgi|py|exe|bat|cmd|jsp|asp|aspx)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Chỉ cho phép các file ảnh và tài liệu hợp lệ
+<FilesMatch "(?i)\.(jpg|jpeg|png|gif|webp|pdf|doc|docx)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>

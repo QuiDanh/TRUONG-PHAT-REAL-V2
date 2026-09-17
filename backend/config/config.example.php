@@ -1,0 +1,43 @@
+<?php
+/**
+ * TRƯỜNG PHÁT REAL - File Cấu Hình Mẫu (config.example.php)
+ * Hãy đổi tên hoặc sao chép thành config.php và cập nhật thông tin thực tế.
+ * TUYỆT ĐỐI KHÔNG commit mật khẩu thật lên Git repository công khai.
+ */
+
+// 1. Cấu hình Database MariaDB / MySQL trên DirectAdmin
+define('DB_HOST', 'localhost');
+define('DB_PORT', '3306');
+define('DB_NAME', 'anminhto_tp_real');
+define('DB_USER', 'anminhto_tp_usr');
+define('DB_PASS', 'YOUR_STRONG_DB_PASSWORD_HERE');
+define('DB_CHARSET', 'utf8mb4');
+
+// 2. Cấu hình Môi trường Ứng dụng
+define('APP_ENV', 'production'); // 'development' hoặc 'production'
+define('APP_NAME', 'TRƯỜNG PHÁT REAL');
+define('APP_URL', 'https://dev.anminhtown.vn'); // Sau nghiệm thu: https://app.anminhtown.vn
+define('TIMEZONE', 'Asia/Ho_Chi_Minh');
+
+// 3. Cấu hình Bảo mật & Phiên làm việc (Session / Bearer Token)
+define('SESSION_LIFETIME_SECONDS', 86400 * 7); // 7 ngày
+define('MAX_LOGIN_ATTEMPTS', 5);               // Khóa tạm sau 5 lần sai
+define('LOCKOUT_DURATION_MINUTES', 15);        // Khóa trong 15 phút
+define('TOKEN_SECRET_SALT', 'CHANGE_THIS_TO_A_64_CHAR_RANDOM_STRING_FOR_SECURE_TOKEN_HASHING');
+
+// 4. Cấu hình CORS (Chỉ cho phép domain xác thực)
+define('CORS_ALLOWED_ORIGINS', [
+    'https://dev.anminhtown.vn',
+    'https://app.anminhtown.vn',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+]);
+
+// 5. Cấu hình Upload File
+define('UPLOAD_DIR', __DIR__ . '/../../public_html/uploads');
+define('UPLOAD_MAX_BYTES', 10 * 1024 * 1024); // 10MB
+define('ALLOWED_IMAGE_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
+define('ALLOWED_DOC_MIMES', ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);
+
+// Thiết lập múi giờ Việt Nam
+date_default_timezone_set(TIMEZONE);

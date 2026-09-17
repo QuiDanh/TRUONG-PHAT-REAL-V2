@@ -1,0 +1,51 @@
+# ====================================================================
+# TRƯỜNG PHÁT REAL - Apache / LiteSpeed Web Server Configuration
+# Deployment location: /home/username/public_html/.htaccess
+# ====================================================================
+
+# 1. Tắt duyệt thư mục
+Options -Indexes
+
+# 2. Ngăn truy cập vào các file nhạy cảm (.env, .sql, .log, .ini, config, git, md)
+<FilesMatch "(^\.env|\.sql$|\.log$|\.ini$|config\.php$|config\.example\.php$|\.git|README)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# 3. Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 4. Rewrite Engine cho Single Page Application (React Router) & API
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Tự động chuyển hướng sang HTTPS nếu có SSL (không gây redirect loop)
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # KHÔNG can thiệp vào các request đến thư mục /api
+    RewriteRule ^api/ - [L]
+
+    # KHÔNG can thiệp vào các request đến thư mục /uploads
+    RewriteRule ^uploads/ - [L]
+
+    # Nếu request là file hoặc thư mục vật lý có thật thì trả về trực tiếp
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Chuyển toàn bộ route còn lại về index.html để React Router xử lý
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# 5. Cấu hình nén GZIP / Deflate để tối ưu tải trang
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
