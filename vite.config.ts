@@ -42,9 +42,15 @@ function devApiPlugin(): Plugin {
   };
 }
 
-export default defineConfig(() => {
+export default defineConfig(({mode}) => {
+  const isMockEnabled = process.env.VITE_ENABLE_MOCK_API === 'true';
+  const plugins = [react(), tailwindcss()];
+  if (isMockEnabled) {
+    plugins.push(devApiPlugin());
+  }
+
   return {
-    plugins: [react(), tailwindcss(), devApiPlugin()],
+    plugins,
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

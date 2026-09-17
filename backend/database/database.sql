@@ -130,10 +130,10 @@ DROP TABLE IF EXISTS `password_reset_tokens`;
 DROP TABLE IF EXISTS `password_resets`;
 DROP TABLE IF EXISTS `login_attempts`;
 
+-- Chỉ sử dụng duy nhất một bảng password_resets, lưu token_hash bảo mật
 CREATE TABLE `password_resets` (
   `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `email` VARCHAR(191) NOT NULL,
-  `token` VARCHAR(128) NOT NULL,
   `token_hash` VARCHAR(64) NOT NULL,
   `user_id` INT UNSIGNED NOT NULL,
   `expires_at` DATETIME NOT NULL,
@@ -141,7 +141,6 @@ CREATE TABLE `password_resets` (
   `used_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX `idx_pres_email` (`email`),
-  INDEX `idx_pres_token` (`token`),
   INDEX `idx_pres_th` (`token_hash`),
   INDEX `idx_pres_user` (`user_id`),
   INDEX `idx_pres_exp` (`expires_at`),
@@ -162,20 +161,6 @@ CREATE TABLE `user_sessions` (
   INDEX `idx_sess_expires` (`expires_at`),
   INDEX `idx_sess_revoked` (`is_revoked`),
   CONSTRAINT `fk_sess_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `password_reset_tokens` (
-  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  `user_id` INT UNSIGNED NOT NULL,
-  `token_hash` VARCHAR(64) NOT NULL UNIQUE,
-  `expires_at` DATETIME NOT NULL,
-  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
-  `used_at` DATETIME NULL,
-  `ip_address` VARCHAR(45) NOT NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX `idx_prt_user` (`user_id`),
-  INDEX `idx_prt_expires` (`expires_at`),
-  CONSTRAINT `fk_prt_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `login_attempts` (

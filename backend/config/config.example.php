@@ -26,15 +26,14 @@ define('LOCKOUT_DURATION_MINUTES', 15);        // Khóa trong 15 phút
 // BẮT BUỘC: Thay thế bằng chuỗi ngẫu nhiên tối thiểu 64 ký tự hex/alphanumeric. Nếu để mặc định hoặc trống, hệ thống sẽ từ chối khởi động.
 define('TOKEN_SECRET_SALT', 'CHANGE_THIS_TO_A_64_CHAR_RANDOM_STRING_FOR_SECURE_TOKEN_HASHING');
 
-// 4. Cấu hình CORS (Chỉ cho phép domain xác thực truy cập)
+// 4. Cấu hình CORS (Chỉ cho phép domain xác thực truy cập khi production)
 define('CORS_ALLOWED_ORIGINS', [
     'https://truongphatsoft.online',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000'
+    'https://www.truongphatsoft.online'
 ]);
 
-// 5. Cấu hình Upload File
-define('UPLOAD_DIR', __DIR__ . '/../../public_html/uploads');
+// 5. Cấu hình Upload File (Thay USERNAME bằng tên tài khoản DirectAdmin của bạn)
+define('UPLOAD_DIR', '/home/USERNAME/domains/truongphatsoft.online/public_html/uploads');
 define('UPLOAD_MAX_BYTES', 10 * 1024 * 1024); // 10MB
 define('ALLOWED_IMAGE_MIMES', ['image/jpeg', 'image/png', 'image/webp']);
 define('ALLOWED_DOC_MIMES', ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']);

@@ -22,10 +22,15 @@ class AuthController {
         try {
             $result = AuthService::login($email, $password, $rememberMe);
 
-            // Thiết lập Cookie HttpOnly, Secure, SameSite chuẩn ngân hàng
+            // Thiết lập Cookie HttpOnly, Secure, SameSite=Strict chuẩn ngân hàng
+            $appEnv = defined('APP_ENV') ? APP_ENV : (getenv('APP_ENV') ?: 'production');
+            $isProduction = ($appEnv === 'production');
             $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
-                || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) 
-                || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+                || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) 
+                || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
+
+            // Khi APP_ENV=production, cookie bắt buộc secure=true
+            $secureCookie = $isProduction ? true : $isHttps;
 
             $cookieLifetime = $rememberMe ? (30 * 86400) : (8 * 3600); // 30 ngày hoặc 8 giờ
             $cookieExpires = time() + $cookieLifetime;
@@ -34,12 +39,16 @@ class AuthController {
                 'expires' => $cookieExpires,
                 'path' => '/',
                 'domain' => '',
-                'secure' => $isHttps,
+                'secure' => $secureCookie,
                 'httponly' => true,
-                'samesite' => 'Lax'
+                'samesite' => 'Strict'
             ]);
 
-            ResponseHelper::success('Đăng nhập thành công.', $result);
+            // JSON đăng nhập chỉ trả success, user và expires_at (không trả access token trong JSON)
+            ResponseHelper::success('Đăng nhập thành công.', [
+                'user' => $result['user'],
+                'expires_at' => $result['expires_at']
+            ]);
         } catch (InvalidArgumentException $ie) {
             ResponseHelper::error($ie->getMessage(), null, 422);
         } catch (Exception $e) {
@@ -85,18 +94,21 @@ class AuthController {
             // Ngay cả khi token không hợp lệ, vẫn tiến hành xóa cookie
         }
 
+        $appEnv = defined('APP_ENV') ? APP_ENV : (getenv('APP_ENV') ?: 'production');
+        $isProduction = ($appEnv === 'production');
         $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') 
-            || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) 
-            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+            || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) 
+            || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
+        $secureCookie = $isProduction ? true : $isHttps;
 
-        // Xóa cookie HttpOnly
+        // Xóa cookie HttpOnly với SameSite=Strict
         setcookie('tp_token', '', [
             'expires' => time() - 86400,
             'path' => '/',
             'domain' => '',
-            'secure' => $isHttps,
+            'secure' => $secureCookie,
             'httponly' => true,
-            'samesite' => 'Lax'
+            'samesite' => 'Strict'
         ]);
 
         ResponseHelper::success('Đăng xuất thành công.');
@@ -132,7 +144,6 @@ class AuthController {
             ResponseHelper::error('Vui lòng nhập địa chỉ email hợp lệ.');
         }
 
-        // Tạo token đặt lại mật khẩu bảo mật (30 phút, dùng 1 lần)
         try {
             $pdo = Database::getConnection();
             $stmt = $pdo->prepare("SELECT `id`, `full_name`, `email` FROM `users` WHERE `email` = :email AND `deleted_at` IS NULL LIMIT 1");
@@ -144,37 +155,17 @@ class AuthController {
                 $tokenHash = Security::hashToken($rawToken);
                 $expiresAt = date('Y-m-d H:i:s', time() + 1800); // 30 phút
 
-                // Lưu vào bảng password_resets (và password_reset_tokens)
-                try {
-                    $insPr = $pdo->prepare("
-                        INSERT INTO `password_resets` (`email`, `token`, `token_hash`, `user_id`, `expires_at`, `is_used`)
-                        VALUES (:email, :token, :th, :uid, :exp, 0)
-                    ");
-                    $insPr->execute([
-                        'email' => $user['email'],
-                        'token' => $rawToken,
-                        'th' => $tokenHash,
-                        'uid' => $user['id'],
-                        'exp' => $expiresAt
-                    ]);
-                } catch (Exception $e) {
-                    // Ignore nếu bảng password_resets chưa tồn tại
-                }
-
-                try {
-                    $insPrt = $pdo->prepare("
-                        INSERT INTO `password_reset_tokens` (`user_id`, `token_hash`, `expires_at`, `ip_address`, `is_used`)
-                        VALUES (:uid, :th, :exp, :ip, 0)
-                    ");
-                    $insPrt->execute([
-                        'uid' => $user['id'],
-                        'th' => $tokenHash,
-                        'exp' => $expiresAt,
-                        'ip' => Security::getClientIp()
-                    ]);
-                } catch (Exception $e) {
-                    // Ignore
-                }
+                // Chỉ lưu token_hash vào bảng password_resets duy nhất (không lưu raw token, không nuốt lỗi DB)
+                $insPr = $pdo->prepare("
+                    INSERT INTO `password_resets` (`email`, `token_hash`, `user_id`, `expires_at`, `is_used`)
+                    VALUES (:email, :th, :uid, :exp, 0)
+                ");
+                $insPr->execute([
+                    'email' => $user['email'],
+                    'th' => $tokenHash,
+                    'uid' => $user['id'],
+                    'exp' => $expiresAt
+                ]);
 
                 $appUrl = defined('APP_URL') ? rtrim(APP_URL, '/') : 'https://truongphatsoft.online';
                 $resetLink = "{$appUrl}/reset-password?token=" . urlencode($rawToken);
@@ -218,14 +209,20 @@ class AuthController {
                     'X-Mailer: PHP/' . phpversion()
                 ];
 
-                @mail($to, $subject, $htmlMessage, implode("\r\n", $headers));
+                $mailSent = @mail($to, $subject, $htmlMessage, implode("\r\n", $headers));
 
-                // Ghi log email vào file an toàn
+                // Kiểm tra kết quả gửi email và báo lỗi phù hợp nếu gửi thất bại
+                if (!$mailSent) {
+                    error_log("Failed to send password reset email to: {$to}");
+                    ResponseHelper::error('Không thể gửi email hướng dẫn đặt lại mật khẩu. Vui lòng liên hệ Quản trị viên hệ thống để được hỗ trợ.', null, 500);
+                }
+
+                // Ghi log email an toàn: TUYỆT ĐỐI KHÔNG GHI RAW TOKEN, MẬT KHẨU HOẶC SECRET VÀO LOG
                 $logDir = dirname(__DIR__, 2) . '/storage/logs';
                 if (!is_dir($logDir)) {
                     @mkdir($logDir, 0755, true);
                 }
-                $logEntry = "[" . date('Y-m-d H:i:s') . "] RESET PASSWORD LINK SENT TO: {$to} | TOKEN: {$rawToken} | IP: " . Security::getClientIp() . PHP_EOL;
+                $logEntry = "[" . date('Y-m-d H:i:s') . "] PASSWORD RESET REQUEST SENT TO: {$to} | IP: " . Security::getClientIp() . PHP_EOL;
                 @file_put_contents($logDir . '/mail.log', $logEntry, FILE_APPEND);
 
                 AuditService::logActivity((int)$user['id'], 'forgot_password_request', 'auth', (int)$user['id']);
@@ -257,66 +254,32 @@ class AuthController {
             $pdo = Database::getConnection();
             $tokenHash = Security::hashToken($token);
 
-            $userId = null;
-            $resetTable = '';
-            $recordId = 0;
+            // Kiểm tra bảng password_resets duy nhất bằng token_hash (loại bỏ cơ chế dùng 2 bảng)
+            $stmt = $pdo->prepare("
+                SELECT `id`, `user_id`, `expires_at`, `is_used` 
+                FROM `password_resets` 
+                WHERE `token_hash` = :th
+                ORDER BY `id` DESC LIMIT 1
+            ");
+            $stmt->execute(['th' => $tokenHash]);
+            $record = $stmt->fetch();
 
-            // 1. Kiểm tra bảng password_resets trước
-            try {
-                $stmt = $pdo->prepare("
-                    SELECT `id`, `user_id`, `expires_at`, `is_used` 
-                    FROM `password_resets` 
-                    WHERE (`token` = :raw_token OR `token_hash` = :th)
-                    ORDER BY `id` DESC LIMIT 1
-                ");
-                $stmt->execute(['raw_token' => $token, 'th' => $tokenHash]);
-                $record = $stmt->fetch();
-                if ($record) {
-                    $userId = (int)$record['user_id'];
-                    $resetTable = 'password_resets';
-                    $recordId = (int)$record['id'];
-                    $isUsed = (bool)$record['is_used'];
-                    $expiresAt = $record['expires_at'];
-
-                    if ($isUsed) {
-                        ResponseHelper::error('Liên kết đặt lại mật khẩu này đã được sử dụng trước đó.', null, 400);
-                    }
-                    if (strtotime($expiresAt) < time()) {
-                        ResponseHelper::error('Liên kết đặt lại mật khẩu đã hết hạn (tối đa 30 phút). Vui lòng yêu cầu lại.', null, 400);
-                    }
-                }
-            } catch (Exception $e) {
-                // Table might not exist yet
+            if (!$record) {
+                ResponseHelper::error('Mã xác thực đặt lại mật khẩu không chính xác hoặc đã bị xóa.', null, 404);
             }
 
-            // 2. Dự phòng: kiểm tra bảng password_reset_tokens
-            if (!$userId) {
-                $stmt2 = $pdo->prepare("
-                    SELECT `id`, `user_id`, `expires_at`, `is_used` 
-                    FROM `password_reset_tokens` 
-                    WHERE `token_hash` = :th 
-                    ORDER BY `id` DESC LIMIT 1
-                ");
-                $stmt2->execute(['th' => $tokenHash]);
-                $record2 = $stmt2->fetch();
-
-                if (!$record2) {
-                    ResponseHelper::error('Mã xác thực đặt lại mật khẩu không chính xác hoặc đã bị xóa.', null, 404);
-                }
-
-                if ($record2['is_used']) {
-                    ResponseHelper::error('Liên kết đặt lại mật khẩu này đã được sử dụng trước đó.', null, 400);
-                }
-                if (strtotime($record2['expires_at']) < time()) {
-                    ResponseHelper::error('Liên kết đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu lại.', null, 400);
-                }
-
-                $userId = (int)$record2['user_id'];
-                $resetTable = 'password_reset_tokens';
-                $recordId = (int)$record2['id'];
+            if ((bool)$record['is_used']) {
+                ResponseHelper::error('Liên kết đặt lại mật khẩu này đã được sử dụng trước đó.', null, 400);
             }
 
-            // 3. Cập nhật mật khẩu mới cho tài khoản
+            if (strtotime($record['expires_at']) < time()) {
+                ResponseHelper::error('Liên kết đặt lại mật khẩu đã hết hạn (tối đa 30 phút). Vui lòng yêu cầu lại.', null, 400);
+            }
+
+            $userId = (int)$record['user_id'];
+            $recordId = (int)$record['id'];
+
+            // Cập nhật mật khẩu mới cho tài khoản
             $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
             $updUser = $pdo->prepare("
                 UPDATE `users` 
@@ -331,16 +294,11 @@ class AuthController {
                 'uid' => $userId
             ]);
 
-            // 4. Đánh dấu token đã được sử dụng (1 lần duy nhất)
-            if ($resetTable === 'password_resets') {
-                $updToken = $pdo->prepare("UPDATE `password_resets` SET `is_used` = 1, `used_at` = NOW() WHERE `id` = :id");
-                $updToken->execute(['id' => $recordId]);
-            } else {
-                $updToken = $pdo->prepare("UPDATE `password_reset_tokens` SET `is_used` = 1, `used_at` = NOW() WHERE `id` = :id");
-                $updToken->execute(['id' => $recordId]);
-            }
+            // Đánh dấu token đã được sử dụng trong bảng password_resets (1 lần duy nhất)
+            $updToken = $pdo->prepare("UPDATE `password_resets` SET `is_used` = 1, `used_at` = NOW() WHERE `id` = :id");
+            $updToken->execute(['id' => $recordId]);
 
-            // 5. Thu hồi tất cả phiên làm việc cũ để đảm bảo an toàn tuyệt đối
+            // Thu hồi tất cả phiên làm việc cũ để đảm bảo an toàn tuyệt đối
             $revokeSessions = $pdo->prepare("UPDATE `user_sessions` SET `is_revoked` = 1 WHERE `user_id` = :uid");
             $revokeSessions->execute(['uid' => $userId]);
 

@@ -37,7 +37,7 @@ export interface User {
 }
 
 export interface AuthResponseData {
-  token: string;
+  token?: string;
   expires_at: string;
   user: User;
 }

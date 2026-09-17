@@ -63,76 +63,9 @@ interface DevLoginAttempt {
   created_at: string;
 }
 
-// In-memory persistent state during dev server lifetime
+// In-memory state during dev server lifetime (Chỉ bật khi VITE_ENABLE_MOCK_API=true, không chứa sẵn tài khoản demo)
 const devState = {
-  users: [
-    {
-      id: 1,
-      code: 'TP-AD001',
-      email: 'admin@truongphatsoft.online',
-      passwordHash: 'Admin@2026', // Khởi tạo an toàn cho dev
-      fullName: 'Nguyễn Văn Phát (Giám Đốc)',
-      phone: '0901234567',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      role: {
-        id: 1,
-        code: 'ADMIN',
-        name: 'Quản trị viên tối cao'
-      },
-      team: null,
-      status: 'active' as const,
-      requirePasswordChange: false,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      lastLoginAt: new Date().toISOString(),
-      lastLoginIp: '127.0.0.1',
-      createdAt: '2026-01-01 08:00:00'
-    },
-    {
-      id: 2,
-      code: 'TP-TL001',
-      email: 'leader@truongphatsoft.online',
-      passwordHash: 'Leader@2026',
-      fullName: 'Trần Thị Kim Oanh (Trưởng Nhóm)',
-      phone: '0912345678',
-      avatarUrl: null,
-      role: {
-        id: 2,
-        code: 'TEAM_LEADER',
-        name: 'Trưởng nhóm kinh doanh'
-      },
-      team: { id: 1, name: 'Khối Kinh Doanh Đông Sài Gòn' },
-      status: 'active' as const,
-      requirePasswordChange: false,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      lastLoginAt: null,
-      lastLoginIp: null,
-      createdAt: '2026-01-05 09:00:00'
-    },
-    {
-      id: 3,
-      code: 'TP-AG001',
-      email: 'agent@truongphatsoft.online',
-      passwordHash: 'Agent@2026',
-      fullName: 'Lê Minh Tuấn (Môi Giới)',
-      phone: '0987654321',
-      avatarUrl: null,
-      role: {
-        id: 3,
-        code: 'AGENT',
-        name: 'Chuyên viên môi giới'
-      },
-      team: { id: 1, name: 'Khối Kinh Doanh Đông Sài Gòn' },
-      status: 'active' as const,
-      requirePasswordChange: true, // Thử nghiệm tính năng bắt buộc đổi mật khẩu lần đầu
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-      lastLoginAt: null,
-      lastLoginIp: null,
-      createdAt: '2026-02-01 10:00:00'
-    }
-  ] as DevUser[],
+  users: [] as DevUser[],
   sessions: [] as DevSession[],
   auditLogs: [] as DevAuditLog[],
   loginAttempts: [] as DevLoginAttempt[],
@@ -277,10 +210,9 @@ export function handleDevApi(url: string, method: string, headers: any, body: an
       user_code: user.code
     });
 
-    const cookieStr = `tp_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(lifetime / 1000)}`;
+    const cookieStr = `tp_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(lifetime / 1000)}`;
 
     return makeRes(true, 'Đăng nhập thành công.', {
-      token,
       expires_at: new Date(Date.now() + lifetime).toISOString(),
       user: {
         id: user.id,
